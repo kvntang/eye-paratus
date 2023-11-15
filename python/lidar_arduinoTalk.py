@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-'''Animates distances and measurment quality'''
+
 from rplidar import RPLidar
 ### Note: pip install rplidar-roboticia
 # import matplotlib.pyplot as plt
