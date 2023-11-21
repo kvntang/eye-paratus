@@ -25,27 +25,38 @@ class handDetector():
         results = self.hands.process(imgRGB)
 
         if results.multi_hand_landmarks:
-            for handLms in results.multi_hand_landmark:
+            for handLms in self.results.multi_hand_landmark:
                 if draw:
                     self.mpDraw.draw_landmarks(img, handLms, self.mpHands.HAND_CONNECTIONS)
         return img
 
+    def findPosition(self, img, handNo =0, draw=True):
+        lmList = []
+        if self.results.multi_hand_landmarks:
+            myhand = self.results.multi_hand_landmark[handNo]
 
-                # for id, lm in enumerate(handLms.landmark):
-                #         h, w, c = img.shape
-                #         cx, cy = int(lm.x * w), int(lm.y*h)
-                #         print(id, cx, cy)
-                #         cv2.circle(img, (cx, cy), 15, (255, 0, 255), cv2.FILLED)
-
+            for id, lm in enumerate(myhand.landmark):
+                    h, w, c = img.shape
+                    cx, cy = int(lm.x * w), int(lm.y*h)
+                    # print(id, cx, cy)
+                    lmList.append([id, cx, cy])
+                    if draw:
+                        cv2.circle(img, (cx, cy), 15, (255, 0, 255), cv2.FILLED)
+                
+        return lmList
 
 def main():
     pTime = 0
+    cTime = 0
     vid = cv2.VideoCapture(0)
     detector = handDetector()
 
     while True:
         success, img = vid.read()
         img = detector.findHands(img)
+        lmList = detector.findPosition(img)
+        if len(lmList) != 0:
+            print(lmList[4]) #print postion of only landmark number 4
 
         cTime = time.time()
         fps = 1 /(cTime - pTime)
@@ -55,3 +66,8 @@ def main():
         cv2.imshow("Image", img)
         cv2.waitKey(1)
 
+
+
+
+if __name__ == "__main__":
+    main()
