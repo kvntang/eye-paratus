@@ -27,9 +27,9 @@ with mp_hands.Hands(
     image.flags.writeable = True
     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
+    # Draw just the thumb and print position
     lmList = []
     if results.multi_hand_landmarks:
-      #draw just the thumb and print position
       myhand = results.multi_hand_landmarks[0]
       for id, lm in enumerate(myhand.landmark):
         h, w, c = image.shape
@@ -37,10 +37,11 @@ with mp_hands.Hands(
         lmList.append([id, cx, cy])
     if len(lmList) != 0:
         pos = lmList[8] #show only one landmark
-        cv2.circle(image, (pos[1], pos[2]), 15, (0, 0, 255), cv2.FILLED)
+        cv2.circle(image, (pos[1], pos[2]), 15, (0, 255, 0), cv2.FILLED)
         text = f'{str(pos[1])}, {str(pos[2])} '
-        cv2.putText(image, text, (10, 70), cv2.FONT_HERSHEY_PLAIN, 3, (0, 0, 255), 3)
-
+        cv2.putText(image, text, (10, 70), cv2.FONT_HERSHEY_PLAIN, 3, (0, 255, 0), 3)
+        # draw line between point and center of screen
+        cv2.line(image, (pos[1], pos[2]), (300, 225), (0, 255, 0), thickness=2, lineType=8)
       
       
     #   #draw all landmarks
