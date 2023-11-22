@@ -33,7 +33,7 @@ class handDetector():
     def findPosition(self, img, handNo =0, draw=True):
         lmList = []
         if self.results.multi_hand_landmarks:
-            myhand = self.results.multi_hand_landmark[handNo]
+            myhand = self.results.multi_hand_landmarks[handNo]
 
             for id, lm in enumerate(myhand.landmark):
                     h, w, c = img.shape

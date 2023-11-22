@@ -26,16 +26,35 @@ with mp_hands.Hands(
     # Draw the hand annotations on the image.
     image.flags.writeable = True
     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+    lmList = []
     if results.multi_hand_landmarks:
-      for hand_landmarks in results.multi_hand_landmarks:
-        mp_drawing.draw_landmarks(
-            image,
-            hand_landmarks,
-            mp_hands.HAND_CONNECTIONS,
-            mp_drawing_styles.get_default_hand_landmarks_style(),
-            mp_drawing_styles.get_default_hand_connections_style())
+      #draw just the thumb and print position
+      myhand = results.multi_hand_landmarks[0]
+      for id, lm in enumerate(myhand.landmark):
+        h, w, c = image.shape
+        cx, cy = int(lm.x * w), int(lm.y*h)
+        lmList.append([id, cx, cy])
+    if len(lmList) != 0:
+        pos = lmList[8] #show only one landmark
+        cv2.circle(image, (pos[1], pos[2]), 15, (0, 0, 255), cv2.FILLED)
+        text = f'{str(pos[1])}, {str(pos[2])} '
+        cv2.putText(image, text, (10, 70), cv2.FONT_HERSHEY_PLAIN, 3, (0, 0, 255), 3)
+
+      
+      
+    #   #draw all landmarks
+    #   for hand_landmarks in results.multi_hand_landmarks:
+    #     mp_drawing.draw_landmarks(
+    #         image,
+    #         hand_landmarks,
+    #         mp_hands.HAND_CONNECTIONS,
+    #         mp_drawing_styles.get_default_hand_landmarks_style(),
+    #         mp_drawing_styles.get_default_hand_connections_style())
+        
     # Flip the image horizontally for a selfie-view display.
-    cv2.imshow('MediaPipe Hands', cv2.flip(image, 1))
+    # cv2.imshow('MediaPipe Hands', cv2.flip(image, 1))
+    cv2.imshow("Image", image)
     if cv2.waitKey(5) & 0xFF == 27:
       break
 cap.release()
