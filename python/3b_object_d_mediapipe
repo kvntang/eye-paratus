@@ -1,0 +1,65 @@
+import cv2
+import mediapipe as mp
+from mediapipe.tasks import python
+from mediapipe.tasks.python import vision
+import numpy as np
+
+model_path = 'C:/Users/Kevin/Documents/GitHub/machine-gaze/efficientdet_lite0.tflite'
+
+# Initialize MediaPipe components
+BaseOptions = mp.tasks.BaseOptions
+ObjectDetector = mp.tasks.vision.ObjectDetector
+ObjectDetectorOptions = mp.tasks.vision.ObjectDetectorOptions
+VisionRunningMode = mp.tasks.vision.RunningMode
+
+# Specify the model path and options for the object detector
+options = ObjectDetectorOptions(
+    base_options=BaseOptions(model_asset_path=model_path),
+    max_results=5,
+    running_mode=VisionRunningMode.VIDEO)
+
+detector = ObjectDetector.create_from_options(options)
+
+# Start capturing video from the webcam
+cap = cv2.VideoCapture(0)
+video_file_fps = cap.get(cv2.CAP_PROP_FPS)
+
+frame_index = 0
+while cap.isOpened():
+    success, opencv_frame = cap.read()
+    if not success:
+        print("Ignoring empty camera frame.")
+        continue
+
+    # Resize the frame to 320x320
+    resized_frame = cv2.resize(opencv_frame, (320, 320))
+
+    # Convert the frame from OpenCV to MediaPipe format
+    mp_image = mp.Image(
+        image_format=mp.ImageFormat.SRGB,
+        data=resized_frame.tobytes(),
+        width=320,
+        height=320)
+
+    # Calculate the timestamp of the current frame
+    frame_timestamp_ms = int(1000 * frame_index / video_file_fps)
+
+    # Perform object detection on the video frame
+    detection_result = detector.detect_for_video(mp_image, frame_timestamp_ms)
+
+    # Draw the detection results onto the original image (not resized)
+    opencv_frame = cv2.cvtColor(opencv_frame, cv2.COLOR_RGB2BGR)
+    if detection_result.detections:
+        for detection in detection_result.detections:
+            mp.tasks.vision.draw_detection(opencv_frame, detection)
+
+    # Display the original image
+    cv2.imshow('MediaPipe Object Detection', opencv_frame)
+    if cv2.waitKey(5) & 0xFF == 27:  # Press 'ESC' to exit
+        break
+
+    frame_index += 1
+
+# Release resources
+cap.release()
+cv2.destroyAllWindows()
