@@ -17,12 +17,28 @@ while cap.isOpened():
         print("Ignoring empty camera frame.")
         continue
 
-    # Resize the frame to 320x320
-    resized_frame = cv2.resize(opencv_frame, (320, 320))
+    # # Resize the frame to 320x320
+    # resized_frame = cv2.resize(opencv_frame, (320, 320))
+    
+    # # Convert the frame from OpenCV to MediaPipe format
+    # mp_image = mp.Image(
+    #     image_format=mp.ImageFormat.SRGB,
+    #     data=resized_frame.tobytes(),
+    #     width=320,
+    #     height=320)
+    
+    
+    # Convert the frame from BGR (OpenCV default) to RGB.
+    rgb_frame = cv2.cvtColor(opencv_frame, cv2.COLOR_BGR2RGB)
 
+    # Resize the frame if necessary to match the input size of your model.
+    resized_frame = cv2.resize(rgb_frame, (320, 320))
 
+    # Convert the frame from OpenCV to MediaPipe format.
+    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=resized_frame)
     #opencv_frame = cv2.cvtColor(mp_image, cv2.COLOR_RGB2BGR)
-
+        # Convert the frame back to BGR for displaying
+    # display_frame = cv2.cvtColor(mp_image, cv2.COLOR_RGB2BGR)
 
     # Display the original image
     cv2.imshow('MediaPipe Object Detection', resized_frame)
