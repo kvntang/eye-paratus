@@ -63,7 +63,7 @@ with mp_hands.Hands(
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
         # black out here
-        image = np.zeros(image.shape, np.uint8)
+        # image = np.zeros(image.shape, np.uint8)
 
         # Draw just the thumb and print position
         lmList = []
