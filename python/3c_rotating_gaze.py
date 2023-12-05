@@ -1,3 +1,20 @@
+#LOGIC
+    #camera on
+    #generate random new coordinate
+    #move to new coordinate
+        #during movement perform object detection + projection
+        #if something is interesting/detected (choose one of the detection)
+            #log current angle
+            #set new coordinate (maybe have a deceleration(midway) coord, then to new coord )
+            #
+            #ACTIVE SEEING: focus on the object (singulate the projection)
+            #project "thinking"
+        #else: 
+            #set new coord immediately
+    #move on
+        #PASSIVE SEEING: project on ALL detected objects
+
+
 import cv2
 import mediapipe as mp
 from mediapipe.tasks import python
@@ -5,20 +22,6 @@ from mediapipe.tasks.python import vision
 import numpy as np
 import time
 
-MARGIN = 10  # pixels
-ROW_SIZE = 10  # pixels
-FONT_SIZE = 1
-FONT_THICKNESS = 1
-RECT_COLOR = (255, 0, 0) # red
-TEXT_COLOR = (255, 255, 255)  # white
-
-prev_time = 0
-
-# Create a window
-cv2.namedWindow("fullscreen", cv2.WND_PROP_FULLSCREEN)
-
-# Set window to fullscreen
-cv2.setWindowProperty("fullscreen", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
 def visualize(
     image,
@@ -59,31 +62,41 @@ def visualize(
 
   return image
 
+##########################################################################################################
+##########################################################################################################
 
+MARGIN = 10  # pixels
+ROW_SIZE = 10  # pixels
+FONT_SIZE = 1
+FONT_THICKNESS = 1
+RECT_COLOR = (255, 0, 0) # red
+TEXT_COLOR = (255, 255, 255)  # white
+
+prev_time = 0
+
+# Create a window
+cv2.namedWindow("fullscreen", cv2.WND_PROP_FULLSCREEN)
+
+# Set window to fullscreen
+cv2.setWindowProperty("fullscreen", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
+#Object Detector Setup
 model_path = 'C:/Users/Kevin/Documents/GitHub/machine-gaze/efficientdet_lite0.tflite'
-
-
-# Initialize MediaPipe components
 BaseOptions = mp.tasks.BaseOptions
 ObjectDetector = mp.tasks.vision.ObjectDetector
 ObjectDetectorOptions = mp.tasks.vision.ObjectDetectorOptions
 VisionRunningMode = mp.tasks.vision.RunningMode
-
-# Specify the model path and options for the object detector
 options = ObjectDetectorOptions(
     base_options=BaseOptions(model_asset_path=model_path),
     max_results=5,
     running_mode=VisionRunningMode.VIDEO)
-
 detector = ObjectDetector.create_from_options(options)
 
-# Start capturing video from the webca
+#Initialize OpenCV
 cap = cv2.VideoCapture(0)
-# cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-# cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-
 video_file_fps = cap.get(cv2.CAP_PROP_FPS)
 
+#Main Video Loop
 frame_index = 0
 while cap.isOpened():
     curr_time = time.time()
@@ -96,68 +109,27 @@ while cap.isOpened():
     if not success:
         print("Ignoring empty camera frame.")
         continue
-    # print(opencv_frame.shape)
-    
-    # crop the camera input. original 640 x 480
-    opencv_frame = opencv_frame[140:364,123:523]
-    # print(opencv_frame.shape)
-    cv2.imshow("fullscreen", opencv_frame)
-    # y: 364-140=224, x: 523-123=400
-    # consider 'letterboxing' the frame for more accuracy?
 
-    # STEP 3: Load the input image.
-    # image = mp.Image.create_from_file(opencv_frame)
-    # #OpenCV to MP
+    #openCV Setup
+    opencv_frame = opencv_frame[140:364,123:523] #custom resizing, match with projector specs
+    cv2.imshow("fullscreen", opencv_frame)
     rgb_frame = cv2.cvtColor(opencv_frame, cv2.COLOR_BGR2RGB) #BGR to RGB
     resized_frame = cv2.resize(opencv_frame, (320, 320))
     mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=resized_frame)
-
-    # STEP 4: Detect objects in the input image.
-        # Calculate the timestamp of the current frame
     frame_timestamp_ms = int(1000 * frame_index / video_file_fps)
-    detection_result = detector.detect_for_video(mp_image, frame_timestamp_ms)
 
-    # STEP 5: Process the detection result. In this case, visualize it.
-    # image_copy = np.copy(mp_image.numpy_view())
-    # image_copy = np.copy(opencv_frame)
-    # image_copy = np.zeros(opencv_frame.shape, np.uint8)   # black
-    # image_copy = np.full(opencv_frame.shape, 128, dtype=np.uint8)   # gray
+    #detection + visualize + project
+    detection_result = detector.detect_for_video(mp_image, frame_timestamp_ms)
     image_copy = np.full(opencv_frame.shape, 255, dtype=np.uint8)   # white
     annotated_image = visualize(image_copy, detection_result)
     rgb_annotated_image = cv2.cvtColor(annotated_image, cv2.COLOR_BGR2RGB)
-
-    # mask = np.zeros_like(rgb_annotated_image)
-
-    # # Draw a white circle on the mask
-    # # cv2.circle(mask, (100,112), 112, (255, 255, 255), -1)
-    # # cv2.circle(mask, (300,112), 112, (255, 255, 255), -1)
-    # cv2.circle(mask, (200,112), 112, (255, 255, 255), -1)
-
-    # # Apply the mask to the frame
-    # masked_frame = cv2.bitwise_and(rgb_annotated_image, mask)
-
     cv2.imshow("fullscreen", rgb_annotated_image)
-    # cv2.imshow("fullscreen", masked_frame)
 
-    # # Display the original image
-    # cv2.imshow('MediaPipe Object Detection', opencv_frame)
+
     if cv2.waitKey(5) & 0xFF == 27:  # Press 'ESC' to exit
         break
 
     frame_index += 1
 
-
-
-    #DRAWING
-
-    # # Draw the detection results onto the original image (not resized)
-    # opencv_frame = cv2.cvtColor(opencv_frame, cv2.COLOR_RGB2BGR)
-    # if detection_result.detections:
-    #     for detection in detection_result.detections:
-    #         mp.tasks.vision.draw_detection(opencv_frame, detection)
-
-
-
-# Release resources
 cap.release()
 cv2.destroyAllWindows()
