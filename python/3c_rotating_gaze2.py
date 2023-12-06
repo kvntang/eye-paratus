@@ -26,9 +26,10 @@ def visualize(image, detection_result, highest_object_index) -> np.ndarray:
     end_point = scaled_bbox_origin_x + scaled_bbox_width, scaled_bbox_origin_y + scaled_bbox_height
     cv2.rectangle(image, start_point, end_point, RECT_COLOR, -1)
 
-    # if ( detection_result.detections[highest_idx]== highest_object_index):
+    # if ( index== highest_object_index):
     #     #highest detection object
     #     cv2.rectangle(image, start_point, end_point, (0, 255, 0), -1) #green
+
     # else:
     #     cv2.rectangle(image, start_point, end_point, RECT_COLOR, -1)
 
@@ -172,14 +173,12 @@ frame_index = 0
 
 #Motor
 isRun = True
-move_to_new_coord = True
-# internal_rotation = 0
-# internal_tilt = 10
+bored = True
+
 global_rotation = 0
 global_tilt = 10
 
 
-scene_num = 0
 move_time = 0
 
 ##########################################################################################################
@@ -206,7 +205,6 @@ try:
             else:
                 prev_time = curr_time
 
-            
             success, opencv_frame = cap.read()
             if not success:
                 print("Ignoring empty camera frame.")
@@ -220,46 +218,48 @@ try:
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=resized_frame)
             frame_timestamp_ms = int(1000 * frame_index / video_file_fps)
             
-
-            #boredom timer
-            if scene_num == 0:
-                if curr_time - move_time > 10:
-                    move_to_new_coord = True
-                    move_time = curr_time
+            # Detection
+            detection_result = detector.detect_for_video(mp_image, frame_timestamp_ms) #detections will always be projected
             
-            # 1. random coord
-            if (move_to_new_coord): #moving cus I'm bored
+            highest_object_index = 0
+            mid_point = (10, 10)
+            
+            
+            #boredom timer
+            if curr_time - move_time > 0.5:
+               bored = False
+               #center to highest detection object
+
+            if curr_time - move_time > 10: # has been 10 secs since last move
+                bored = True
+                #move randomly
+            
+            
+            ###################
+            
+            if (bored): #moving cus I'm bored
                 #random coord
                 new_coordinate = generate_random_coordinate(-20, 20, -5, 5)
                 move_to(0, new_coordinate) #0 = absolute, 1 = relative
 
-                #update variable
+                #post move update
                 move_to_new_coord = False
                 move_time = curr_time
                 global_rotation = new_coordinate[0]
                 global_tilt = new_coordinate[1]
-            
-            #Detection
-            detection_result = detector.detect_for_video(mp_image, frame_timestamp_ms)
 
-
-            highest_object_index = 0
-            # 2. Optimize coord to Object
-            if curr_time - move_time > 0.5:     # update rate
-
+            else: #center to highest detection object
                 highest_detection_object, highest_object_index = get_highest_detection(detection_result)
 
                 # moving cus I want to see something!
-                if highest_detection_object.categories[0].score > 0.3: #set threshold
-                    # calculate center diff
+                if highest_detection_object.categories[0].score > 0.2: #set threshold
+                    # move to highest detection object
                     mid_point = get_bounding_box_mid_point(highest_detection_object)
                     center_diff = mid_point[0] - 200, mid_point[1] - 112
-
-
                     new_coordinate = generate_proximity_coordinate(center_diff, 40, 40) # 40pixels = 1 degree
                     move_to(0, new_coordinate)
 
-                    #update variable
+                    #post move update
                     move_to_new_coord = False
                     move_time = curr_time
                     global_rotation = new_coordinate[0]
@@ -267,9 +267,11 @@ try:
             
 
             # Draw
-            image_copy = np.full(opencv_frame.shape, 255, dtype=np.uint8)   # white
+            image_copy = np.zeros(opencv_frame.shape, np.uint8)   # black
+            # image_copy = np.full(opencv_frame.shape, 255, dtype=np.uint8)   # white
             annotated_image = visualize(image_copy, detection_result, highest_object_index)
-            rgb_annotated_image = cv2.cvtColor(annotated_image, cv2.COLOR_BGR2RGB)
+            test = cv2.circle(annotated_image, (round(mid_point[0]), round(mid_point[1])), 5, (0, 255, 0), cv2.FILLED)
+            rgb_annotated_image = cv2.cvtColor(test, cv2.COLOR_BGR2RGB)
             cv2.imshow("fullscreen", rgb_annotated_image)
 
 

@@ -61,11 +61,11 @@ try:
 
                 if closestAngle > 3 and closestAngle < 357:
                     if closestAngle < 180:      # clockwise condition
-                        movementValue = closestAngle
+                        rotationValue = closestAngle
                     else:   # counter-clockwise condition
-                        movementValue = closestAngle - 360
-                    print("movement value: ", movementValue)
-                    binary_data_to_send = struct.pack("iiii", 1, movementValue, 0, 0)
+                        rotationValue = closestAngle - 360
+                    print("movement value: ", rotationValue)
+                    binary_data_to_send = struct.pack("iiii", 1, rotationValue, 0, 0)
                     ser.write(binary_data_to_send)
 
 except KeyboardInterrupt:
