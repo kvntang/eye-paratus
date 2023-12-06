@@ -110,7 +110,7 @@ def generate_proximity_coordinate(center_diff, r, t):
     #rotation
     rotation = round(global_rotation + (x/r)) # 40 pixels on the x axis = 1 degree
     #tilt
-    tilt = round(global_tilt + (y/t)) #40 pixels on the x axis = 1 tilt unit
+    tilt = round(global_tilt - (y/t)) #40 pixels on the x axis = 1 tilt unit /// -80/80 = -1, global tilt = 1 - -80/80 = 1 + 1 = 2
     if tilt < 0:
         tilt = 0
     elif tilt > 20:
@@ -223,6 +223,7 @@ try:
             
             highest_object_index = 0
             mid_point = (10, 10)
+            center_diff = (0, 0)
             
             
             #boredom timer
@@ -256,8 +257,9 @@ try:
                     # move to highest detection object
                     mid_point = get_bounding_box_mid_point(highest_detection_object)
                     center_diff = mid_point[0] - 200, mid_point[1] - 112
-                    new_coordinate = generate_proximity_coordinate(center_diff, 40, 40) # 40pixels = 1 degree
+                    new_coordinate = generate_proximity_coordinate(center_diff, 40, 100) # 40pixels = 1 degree
                     move_to(0, new_coordinate)
+
 
                     #post move update
                     move_to_new_coord = False
@@ -270,7 +272,11 @@ try:
             image_copy = np.zeros(opencv_frame.shape, np.uint8)   # black
             # image_copy = np.full(opencv_frame.shape, 255, dtype=np.uint8)   # white
             annotated_image = visualize(image_copy, detection_result, highest_object_index)
+
             test = cv2.circle(annotated_image, (round(mid_point[0]), round(mid_point[1])), 5, (0, 255, 0), cv2.FILLED)
+            test = cv2.putText(test, str(center_diff), (200, 200), cv2.FONT_HERSHEY_PLAIN,
+                FONT_SIZE, (0, 255, 0), FONT_THICKNESS)
+            
             rgb_annotated_image = cv2.cvtColor(test, cv2.COLOR_BGR2RGB)
             cv2.imshow("fullscreen", rgb_annotated_image)
 
