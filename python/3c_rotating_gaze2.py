@@ -50,6 +50,45 @@ def move_to(val,movementValue):
     binary_data_to_send = struct.pack("iiii", val, rotation, tilt, focus)
     ser.write(binary_data_to_send)
 
+def get_bounding_box_mid_point(highest_detection):
+    x_scale = 380/320
+    y_scale = 204/320
+
+    bbox = highest_detection.bounding_box
+
+    scaled_bbox_origin_x = round(bbox.origin_x * x_scale) + 10
+    scaled_bbox_origin_y = round(bbox.origin_y * y_scale) + 10
+    scaled_bbox_width = round(bbox.width * x_scale)
+    scaled_bbox_height = round(bbox.height * y_scale)
+    start_point = scaled_bbox_origin_x, scaled_bbox_origin_y
+    end_point = scaled_bbox_origin_x + scaled_bbox_width, scaled_bbox_origin_y + scaled_bbox_height
+    mid_point = (start_point[0] + end_point[0])/2, (start_point[1] + end_point[1])/2
+    # print(mid_point)
+
+    return mid_point
+
+def generate_random_coordinate(r_lower_range, r_upper_range, t_lower_range, t_upper_range):
+    # rotation
+    rotation_diff = random.randint(-20, 20)
+    internal_rotation = internal_rotation + rotation_diff
+    rotation = internal_rotation
+
+    # tilt
+    tilt_diff = random.randint(-5, 5)
+    internal_tilt = internal_tilt + tilt_diff
+    if internal_tilt < 0: #out of bound check
+        internal_tilt = 0
+    elif internal_tilt > 20:
+        internal_tilt = 20
+    tilt = internal_tilt
+
+    # focus
+    focus = 0
+    
+    new_coordinate = [rotation, tilt, focus]
+
+    return new_coordinate
+
 ##########################################################################################################
 ##########################################################################################################
 
@@ -119,6 +158,8 @@ try:
 
         #Main Video Loop
         while cap.isOpened():
+
+            #clock setup
             curr_time = time.time()
             if curr_time - prev_time < 0.1:
                 continue
@@ -133,46 +174,24 @@ try:
         
             #openCV Setup
             opencv_frame = opencv_frame[140:364,123:523] # custom resizing, match with projector specs
-            # cv2.imshow("fullscreen", opencv_frame)
             detection_frame = opencv_frame[10:214,10:390]
-
             rgb_frame = cv2.cvtColor(detection_frame, cv2.COLOR_BGR2RGB) #BGR to RGB
             resized_frame = cv2.resize(rgb_frame, (320, 320))
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=resized_frame)
             frame_timestamp_ms = int(1000 * frame_index / video_file_fps)
+            
 
-            # 0 wandering state, stop at destination coordinate 
-                # 0a if detect object (above confidence threshold) while moving go to 1
-                # 0b if no objects detected while moving, stay at coord for 1 sec
-                    # 0bi if objects detected (above confidence threshold), go to 2
-                    # 0bii if no objects detected (above confidence threshold), go to 0
-            # 1 decelerate, return back to stored positon, go to 2
-            # 2 center the projector on seen object, stay for x sec, then go to 0
-
+            #boredom timer
             if scene_num == 0:
                 if curr_time - move_time > 10:
                     move_to_new_coord = True
                     move_time = curr_time
             
             # 1. random coord
-            if (move_to_new_coord):
-                #generate new coordinate
-                # rotation = random.randint(0, 360)
-                rotation_diff = random.randint(-20, 20)
-                internal_rotation = internal_rotation + rotation_diff
-                rotation = internal_rotation
+            if (move_to_new_coord): #bored
+                #random coord
+                new_coordinate = generate_random_coordinate(r_lower_range, r_upper_range, t_lower_range, t_upper_range)
 
-                # tilt = random.randint(0, 20)
-                tilt_diff = random.randint(-5, 5)
-                internal_tilt = internal_tilt + tilt_diff
-                if internal_tilt < 0:
-                    internal_tilt = 0
-                elif internal_tilt > 20:
-                    internal_tilt = 20
-                tilt = internal_tilt
-                focus = 0
-                new_coordinate = [rotation, tilt, focus]
-                #move to goal_coordinate
                 move_to(0, new_coordinate) #0 = absolute, 1 = relative
                 move_to_new_coord = False
                 move_time = curr_time
@@ -192,25 +211,14 @@ try:
                 highest_detection = detection_result.detections[highest_idx]
                 # print("highest detection: ", highest_detection.categories[0].score, highest_detection.categories[0].category_name)
                 
-                if highest_detection.categories[0].score > 0.0:
-                    # calculate object midpoint
-                    x_scale = 380/320
-                    y_scale = 204/320
-                    bbox = highest_detection.bounding_box
-                    scaled_bbox_origin_x = round(bbox.origin_x * x_scale) + 10
-                    scaled_bbox_origin_y = round(bbox.origin_y * y_scale) + 10
-                    scaled_bbox_width = round(bbox.width * x_scale)
-                    scaled_bbox_height = round(bbox.height * y_scale)
-                    start_point = scaled_bbox_origin_x, scaled_bbox_origin_y
-                    end_point = scaled_bbox_origin_x + scaled_bbox_width, scaled_bbox_origin_y + scaled_bbox_height
-                    mid_point = (start_point[0] + end_point[0])/2, (start_point[1] + end_point[1])/2
-                    # print(mid_point)
-
-                    # calculate center difference
+                if highest_detection.categories[0].score > 0.3: #set threshold
+                    # calculate center diff
+                    mid_point = get_bounding_box_mid_point(highest_detection)
                     center_diff = mid_point[0] - 200, mid_point[1] - 112
-                    print(center_diff)
+                    # print(center_diff)
+
                     internal_rotation = round(internal_rotation + (center_diff[0]/40))
-                    internal_tilt = round(internal_tilt + (center_diff[0]/40))
+                    internal_tilt = round(internal_tilt + (center_diff[0]/40)) #size of movement
                     if internal_tilt < 0:
                         internal_tilt = 0
                     elif internal_tilt > 20:
