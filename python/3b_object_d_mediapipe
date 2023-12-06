@@ -101,7 +101,7 @@ while cap.isOpened():
     # crop the camera input. original 640 x 480
     opencv_frame = opencv_frame[140:364,123:523]
     # print(opencv_frame.shape)
-    cv2.imshow("fullscreen", opencv_frame)
+    # cv2.imshow("fullscreen", opencv_frame)
     # y: 364-140=224, x: 523-123=400
     # consider 'letterboxing' the frame for more accuracy?
 
@@ -119,7 +119,7 @@ while cap.isOpened():
 
     # STEP 5: Process the detection result. In this case, visualize it.
     # image_copy = np.copy(mp_image.numpy_view())
-    # image_copy = np.copy(opencv_frame)
+    # image_copy = np.copy(opencv_frame)    # camera feed
     # image_copy = np.zeros(opencv_frame.shape, np.uint8)   # black
     # image_copy = np.full(opencv_frame.shape, 128, dtype=np.uint8)   # gray
     image_copy = np.full(opencv_frame.shape, 255, dtype=np.uint8)   # white

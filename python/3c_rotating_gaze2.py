@@ -1,20 +1,3 @@
-#LOGIC
-    #camera on
-    #generate random new coordinate
-    #move to new coordinate
-        #during movement perform object detection + projection
-        #if something is interesting/detected (choose one of the detection)
-            #log current angle
-            #set new coordinate (maybe have a deceleration(midway) coord, then to new coord )
-            #
-            #ACTIVE SEEING: focus on the object (singulate the projection)
-            #project "thinking"
-        #else: 
-            #set new coord immediately
-    #move on
-        #PASSIVE SEEING: project on ALL detected objects
-
-
 import cv2
 import mediapipe as mp
 from mediapipe.tasks import python
@@ -171,6 +154,7 @@ try:
                     move_to_new_coord = True
                     move_time = curr_time
             
+            # 1. random coord
             if (move_to_new_coord):
                 #generate new coordinate
                 # rotation = random.randint(0, 360)
@@ -193,22 +177,14 @@ try:
                 move_to_new_coord = False
                 move_time = curr_time
             
-
-
-            #if detect interesting object
-                #log motor direction, when that object is in center of screen
-                #generate deceleration coordinate
-                #calculate object_coordinate
-                #go to object, pause 10 second
-            #if doesnt detect anything
-                #generate new coordinate
-
-            #detection + visualize + project
+            #Detection
             detection_result = detector.detect_for_video(mp_image, frame_timestamp_ms)
 
+            # 2. Optimize coord to Object
             if curr_time - move_time > 0.5:     # update rate
                 highest_score = 0
                 highest_idx = -1
+                # get highest detection
                 for idx, detection in enumerate(detection_result.detections):
                     if highest_score < detection.categories[0].score:
                         highest_score = detection.categories[0].score
@@ -217,11 +193,10 @@ try:
                 # print("highest detection: ", highest_detection.categories[0].score, highest_detection.categories[0].category_name)
                 
                 if highest_detection.categories[0].score > 0.0:
+                    # calculate object midpoint
                     x_scale = 380/320
                     y_scale = 204/320
                     bbox = highest_detection.bounding_box
-                    # scaled_bbox_origin_x = round(bbox.origin_x * x_scale) 
-                    # scaled_bbox_origin_y = round(bbox.origin_y * y_scale) 
                     scaled_bbox_origin_x = round(bbox.origin_x * x_scale) + 10
                     scaled_bbox_origin_y = round(bbox.origin_y * y_scale) + 10
                     scaled_bbox_width = round(bbox.width * x_scale)
@@ -231,7 +206,7 @@ try:
                     mid_point = (start_point[0] + end_point[0])/2, (start_point[1] + end_point[1])/2
                     # print(mid_point)
 
-                    # 400, 224
+                    # calculate center difference
                     center_diff = mid_point[0] - 200, mid_point[1] - 112
                     print(center_diff)
                     internal_rotation = round(internal_rotation + (center_diff[0]/40))
@@ -240,6 +215,8 @@ try:
                         internal_tilt = 0
                     elif internal_tilt > 20:
                         internal_tilt = 20
+
+                    # move
                     focus = 0
                     new_coordinate = [internal_rotation, internal_tilt, focus]
                     print(new_coordinate)
