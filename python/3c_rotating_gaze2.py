@@ -10,19 +10,14 @@ import struct
 import random
 
 
-def visualize(image, detection_result) -> np.ndarray:
-  for detection in detection_result.detections:
+def visualize(image, detection_result, highest_object_index) -> np.ndarray:
+  for index, detection in enumerate(detection_result.detections):
     if detection.categories[0].score < 0.2:
-       continue
-
+        continue
     # Draw bounding_box
     bbox = detection.bounding_box
-    # x_scale = 400/320
-    # y_scale = 224/320
     x_scale = 380/320
     y_scale = 204/320
-    # scaled_bbox_origin_x = round(bbox.origin_x * x_scale) 
-    # scaled_bbox_origin_y = round(bbox.origin_y * y_scale) 
     scaled_bbox_origin_x = round(bbox.origin_x * x_scale) + 10
     scaled_bbox_origin_y = round(bbox.origin_y * y_scale) + 10
     scaled_bbox_width = round(bbox.width * x_scale)
@@ -31,7 +26,13 @@ def visualize(image, detection_result) -> np.ndarray:
     end_point = scaled_bbox_origin_x + scaled_bbox_width, scaled_bbox_origin_y + scaled_bbox_height
     cv2.rectangle(image, start_point, end_point, RECT_COLOR, -1)
 
-    # Draw label and score
+    # if ( detection_result.detections[highest_idx]== highest_object_index):
+    #     #highest detection object
+    #     cv2.rectangle(image, start_point, end_point, (0, 255, 0), -1) #green
+    # else:
+    #     cv2.rectangle(image, start_point, end_point, RECT_COLOR, -1)
+
+        # Draw label and score
     category = detection.categories[0]
     category_name = category.category_name
     probability = round(category.score, 2)
@@ -69,18 +70,16 @@ def get_bounding_box_mid_point(highest_detection):
 
 def generate_random_coordinate(r_lower_range, r_upper_range, t_lower_range, t_upper_range):
     # rotation
-    rotation_diff = random.randint(-20, 20)
-    internal_rotation = internal_rotation + rotation_diff
-    rotation = internal_rotation
+    rotation_diff = random.randint(r_lower_range, r_upper_range)
+    rotation = global_rotation + rotation_diff #new coord = current rotation POS + how much to move
 
     # tilt
-    tilt_diff = random.randint(-5, 5)
-    internal_tilt = internal_tilt + tilt_diff
-    if internal_tilt < 0: #out of bound check
-        internal_tilt = 0
-    elif internal_tilt > 20:
-        internal_tilt = 20
-    tilt = internal_tilt
+    tilt_diff = random.randint(t_lower_range, t_upper_range)
+    tilt = global_tilt + tilt_diff
+    if tilt < 0: #out of bound check
+        tilt = 0
+    elif tilt > 20:
+        tilt = 20
 
     # focus
     focus = 0
@@ -88,6 +87,42 @@ def generate_random_coordinate(r_lower_range, r_upper_range, t_lower_range, t_up
     new_coordinate = [rotation, tilt, focus]
 
     return new_coordinate
+
+def get_highest_detection(detection_result):
+    highest_score = 0
+    highest_idx = -1
+    # get highest detection from all objects
+
+    for idx, detection in enumerate(detection_result.detections):
+
+        if highest_score < detection.categories[0].score:
+            highest_score = detection.categories[0].score
+            highest_idx = idx
+
+    highest_detection_object = detection_result.detections[highest_idx]
+    # print("highest detection: ", highest_detection.categories[0].score, highest_detection.categories[0].category_name)
+
+    return highest_detection_object, highest_idx #might be wrong here
+
+def generate_proximity_coordinate(center_diff, r, t):
+    x, y = center_diff
+    #rotation
+    rotation = round(global_rotation + (x/r)) # 40 pixels on the x axis = 1 degree
+    #tilt
+    tilt = round(global_tilt + (y/t)) #40 pixels on the x axis = 1 tilt unit
+    if tilt < 0:
+        tilt = 0
+    elif tilt > 20:
+        tilt = 20
+    # focus
+    focus = 0
+    
+    new_coordinate = [rotation, tilt, focus]
+
+    return new_coordinate
+
+
+
 
 ##########################################################################################################
 ##########################################################################################################
@@ -138,12 +173,17 @@ frame_index = 0
 #Motor
 isRun = True
 move_to_new_coord = True
-internal_rotation = 0
-internal_tilt = 10
+# internal_rotation = 0
+# internal_tilt = 10
+global_rotation = 0
+global_tilt = 10
+
 
 scene_num = 0
 move_time = 0
 
+##########################################################################################################
+##########################################################################################################
 #Main Motor Loop
 try:
     print("Waiting for Arduino to initialize...")
@@ -188,53 +228,47 @@ try:
                     move_time = curr_time
             
             # 1. random coord
-            if (move_to_new_coord): #bored
+            if (move_to_new_coord): #moving cus I'm bored
                 #random coord
-                new_coordinate = generate_random_coordinate(r_lower_range, r_upper_range, t_lower_range, t_upper_range)
-
+                new_coordinate = generate_random_coordinate(-20, 20, -5, 5)
                 move_to(0, new_coordinate) #0 = absolute, 1 = relative
+
+                #update variable
                 move_to_new_coord = False
                 move_time = curr_time
+                global_rotation = new_coordinate[0]
+                global_tilt = new_coordinate[1]
             
             #Detection
             detection_result = detector.detect_for_video(mp_image, frame_timestamp_ms)
 
+
+            highest_object_index = 0
             # 2. Optimize coord to Object
             if curr_time - move_time > 0.5:     # update rate
-                highest_score = 0
-                highest_idx = -1
-                # get highest detection
-                for idx, detection in enumerate(detection_result.detections):
-                    if highest_score < detection.categories[0].score:
-                        highest_score = detection.categories[0].score
-                        highest_idx = idx
-                highest_detection = detection_result.detections[highest_idx]
-                # print("highest detection: ", highest_detection.categories[0].score, highest_detection.categories[0].category_name)
-                
-                if highest_detection.categories[0].score > 0.3: #set threshold
+
+                highest_detection_object, highest_object_index = get_highest_detection(detection_result)
+
+                # moving cus I want to see something!
+                if highest_detection_object.categories[0].score > 0.3: #set threshold
                     # calculate center diff
-                    mid_point = get_bounding_box_mid_point(highest_detection)
+                    mid_point = get_bounding_box_mid_point(highest_detection_object)
                     center_diff = mid_point[0] - 200, mid_point[1] - 112
-                    # print(center_diff)
 
-                    internal_rotation = round(internal_rotation + (center_diff[0]/40))
-                    internal_tilt = round(internal_tilt + (center_diff[0]/40)) #size of movement
-                    if internal_tilt < 0:
-                        internal_tilt = 0
-                    elif internal_tilt > 20:
-                        internal_tilt = 20
 
-                    # move
-                    focus = 0
-                    new_coordinate = [internal_rotation, internal_tilt, focus]
-                    print(new_coordinate)
+                    new_coordinate = generate_proximity_coordinate(center_diff, 40, 40) # 40pixels = 1 degree
                     move_to(0, new_coordinate)
+
+                    #update variable
+                    move_to_new_coord = False
                     move_time = curr_time
+                    global_rotation = new_coordinate[0]
+                    global_tilt = new_coordinate[1]
             
 
-            # image_copy = np.copy(mp_image.numpy_view())     # camera feed
+            # Draw
             image_copy = np.full(opencv_frame.shape, 255, dtype=np.uint8)   # white
-            annotated_image = visualize(image_copy, detection_result)
+            annotated_image = visualize(image_copy, detection_result, highest_object_index)
             rgb_annotated_image = cv2.cvtColor(annotated_image, cv2.COLOR_BGR2RGB)
             cv2.imshow("fullscreen", rgb_annotated_image)
 
