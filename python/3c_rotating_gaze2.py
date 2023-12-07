@@ -24,7 +24,7 @@ def visualize(image, detection_result, highest_object_index) -> np.ndarray:
     scaled_bbox_height = round(bbox.height * y_scale)
     start_point = scaled_bbox_origin_x, scaled_bbox_origin_y
     end_point = scaled_bbox_origin_x + scaled_bbox_width, scaled_bbox_origin_y + scaled_bbox_height
-    cv2.rectangle(image, start_point, end_point, RECT_COLOR, -1)
+    cv2.rectangle(image, start_point, end_point, (255, 255, 255), 2)
 
     # if ( index== highest_object_index):
     #     #highest detection object
@@ -179,7 +179,9 @@ global_rotation = 0
 global_tilt = 10
 
 
-move_time = 0
+#move_time = 0
+bored_time = 0
+
 
 ##########################################################################################################
 ##########################################################################################################
@@ -200,6 +202,7 @@ try:
 
             #clock setup
             curr_time = time.time()
+
             if curr_time - prev_time < 0.1:
                 continue
             else:
@@ -225,27 +228,38 @@ try:
             mid_point = (10, 10)
             center_diff = (0, 0)
             
-            
-            #boredom timer
-            if curr_time - move_time > 0.5:
-               bored = False
-               #center to highest detection object
+            ########################
 
-            if curr_time - move_time > 10: # has been 10 secs since last move
+            # #boredom timer
+            # if curr_time - move_time > 0.5:
+            #    bored = False
+            #    #center to highest detection object
+
+            # if curr_time - move_time > 10: # has been 10 secs since last move
+            #     bored = True
+            #     #move randomly
+            
+            ########################
+
+            # Bored Timer
+            timer_counter = curr_time - bored_time
+            if  timer_counter >= 15:
+                # look at something else
                 bored = True
-                #move randomly
+                bored_time = curr_time
+            else:
+                bored = False
             
-            
-            ###################
+            ############################################################################
             
             if (bored): #moving cus I'm bored
                 #random coord
-                new_coordinate = generate_random_coordinate(-20, 20, -5, 5)
+                new_coordinate = generate_random_coordinate(-90, 90, -10, 10)
                 move_to(0, new_coordinate) #0 = absolute, 1 = relative
 
                 #post move update
                 move_to_new_coord = False
-                move_time = curr_time
+                #move_time = curr_time
                 global_rotation = new_coordinate[0]
                 global_tilt = new_coordinate[1]
 
@@ -263,7 +277,7 @@ try:
 
                     #post move update
                     move_to_new_coord = False
-                    move_time = curr_time
+                    #move_time = curr_time
                     global_rotation = new_coordinate[0]
                     global_tilt = new_coordinate[1]
             
@@ -271,10 +285,12 @@ try:
             # Draw
             image_copy = np.zeros(opencv_frame.shape, np.uint8)   # black
             # image_copy = np.full(opencv_frame.shape, 255, dtype=np.uint8)   # white
-            annotated_image = visualize(image_copy, detection_result, highest_object_index)
+            test = visualize(image_copy, detection_result, highest_object_index)
 
-            test = cv2.circle(annotated_image, (round(mid_point[0]), round(mid_point[1])), 5, (0, 255, 0), cv2.FILLED)
+            test = cv2.circle(test, (round(mid_point[0]), round(mid_point[1])), 15, (0, 255, 0), cv2.FILLED)
             test = cv2.putText(test, str(center_diff), (200, 200), cv2.FONT_HERSHEY_PLAIN,
+                FONT_SIZE, (0, 255, 0), FONT_THICKNESS)
+            test = cv2.putText(test, str(int(timer_counter)), (10, 200), cv2.FONT_HERSHEY_PLAIN,
                 FONT_SIZE, (0, 255, 0), FONT_THICKNESS)
             
             rgb_annotated_image = cv2.cvtColor(test, cv2.COLOR_BGR2RGB)
@@ -287,6 +303,7 @@ try:
                 break
 
             frame_index += 1
+
 
 except KeyboardInterrupt:
     # lidar.stop()
